@@ -1,0 +1,17 @@
+{
+  "canisters": {
+    "community_sphere_backend": {
+      "candid": "src/community_sphere_backend/community_sphere_backend.did",
+      "package": "community_sphere_backend",
+      "type": "rust"
+    }
+  },
+  "defaults": {
+    "build": {
+      "args": "",
+      "packtool": ""
+    }
+  },
+  "output_env_file": ".env",
+  "version": 1
+}

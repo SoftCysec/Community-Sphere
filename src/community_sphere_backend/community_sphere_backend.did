@@ -1,0 +1,41 @@
+type Principal = principal;
+type User = record {
+  id: Principal;
+  trust_level: nat8;
+};
+type Endorsement = record {
+  endorsed_by: Principal;
+  reason: text;
+};
+type CommunitySpace = record {
+  id: text;
+  name: text;
+  members: vec Principal;
+  physical_location: opt text;
+};
+type Post = record {
+  author: Principal;
+  content: text;
+  timestamp: nat64;
+};
+type VoteOption = variant { Yes; No };
+type Proposal = record {
+  id: text;
+  proposed_by: Principal;
+  description: text;
+  votes: vec record {Principal; VoteOption};
+};
+
+service : {
+  init: () -> ();
+  register_user: (nat8) -> ();
+  create_community_space: (text, text, opt text) -> ();
+  join_community_space: (text) -> ();
+  post_message: (text, text) -> ();
+  get_community_spaces: () -> (vec CommunitySpace);
+  get_posts_for_space: (text) -> (vec Post);
+  create_proposal: (text, text) -> ();
+  vote_on_proposal: (text, VoteOption) -> ();
+  get_proposals: () -> (vec Proposal);
+  get_votes_for_proposal: (text) -> (vec record {Principal; VoteOption});
+}

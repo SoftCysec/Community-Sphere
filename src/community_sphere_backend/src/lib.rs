@@ -76,15 +76,19 @@ fn register_user(trust_level: u8) {
 
 #[update]
 fn create_community_space(id: String, name: String, physical_location: Option<String>) {
-    let space = CommunitySpace {
-        id: id.clone(),
-        name,
-        members: HashSet::new(),
-        physical_location,
-    };
     STATE.with(|s| {
         let mut state = s.borrow_mut();
-        state.spaces.insert(id, space);
+        if !state.spaces.contains_key(&id) {
+            let space = CommunitySpace {
+                id: id.clone(),
+                name,
+                members: HashSet::new(),
+                physical_location,
+            };
+            state.spaces.insert(id, space);
+        } else {
+            ic_cdk::api::print("A community space with the given ID already exists.");
+        }
     });
 }
 
@@ -94,20 +98,30 @@ fn join_community_space(space_id: String) {
         let mut state = s.borrow_mut();
         if let Some(space) = state.spaces.get_mut(&space_id) {
             space.members.insert(caller());
+        } else {
+            ic_cdk::api::print("The community space with the given ID does not exist.");
         }
     });
 }
 
 #[update]
-fn post_message(_space_id: String, content: String) {
-    let post = Post {
-        author: caller(),
-        content,
-        timestamp: time(),
-    };
+fn post_message(space_id: String, content: String) {
     STATE.with(|s| {
         let mut state = s.borrow_mut();
-        state.posts.push(post);
+        if let Some(space) = state.spaces.get(&space_id) {
+            if space.members.contains(&caller()) {
+                let post = Post {
+                    author: caller(),
+                    content,
+                    timestamp: time(),
+                };
+                state.posts.push(post);
+            } else {
+                ic_cdk::api::print("You are not a member of the specified community space.");
+            }
+        } else {
+            ic_cdk::api::print("The community space with the given ID does not exist.");
+        }
     });
 }
 
@@ -120,21 +134,36 @@ fn get_community_spaces() -> Vec<CommunitySpace> {
 fn get_posts_for_space(space_id: String) -> Vec<Post> {
     let space_id_principal = Principal::from_text(&space_id).expect("Invalid Principal");
     STATE.with(|s| {
-        s.borrow().posts.iter().filter(|p| p.author == space_id_principal).cloned().collect()
+        let state = s.borrow();
+        if let Some(space) = state.spaces.get(&space_id) {
+            state
+                .posts
+                .iter()
+                .filter(|p| space.members.contains(&p.author))
+                .cloned()
+                .collect()
+        } else {
+            ic_cdk::api::print("The community space with the given ID does not exist.");
+            Vec::new()
+        }
     })
 }
 
 #[update]
 fn create_proposal(id: String, description: String) {
     let proposal = Proposal {
-        id,
+        id: id.clone(),
         proposed_by: caller(),
         description,
         votes: HashMap::new(),
     };
     STATE.with(|s| {
         let mut state = s.borrow_mut();
-        state.proposals.push(proposal);
+        if state.proposals.iter().all(|p| p.id != id) {
+            state.proposals.push(proposal);
+        } else {
+            ic_cdk::api::print("A proposal with the given ID already exists.");
+        }
     });
 }
 
@@ -144,6 +173,8 @@ fn vote_on_proposal(proposal_id: String, vote: VoteOption) {
         let mut state = s.borrow_mut();
         if let Some(proposal) = state.proposals.iter_mut().find(|p| p.id == proposal_id) {
             proposal.votes.insert(caller(), vote);
+        } else {
+            ic_cdk::api::print("The proposal with the given ID does not exist.");
         }
     });
 }
